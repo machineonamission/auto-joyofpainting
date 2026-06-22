@@ -31,6 +31,8 @@ https://github.com/user-attachments/assets/a8c6e498-bb9d-40fd-ba6e-2a63f1fd34e7
 - the program will then paint for you :3
 
 
-# limitations
+# future plans
 
-currently, the program only paints with the colors you provide it (max 28 cause thats how many fit on a palette) and using dithering math to approximate other colors. i'm convinced it'd be possible, via mixing, to achieve most, if not all, RGB colors, removing dithering artifacts entirely, but idk enough about how the painting mods mixing system works to do this yet
+- currently, the program only paints with the colors you provide it (max 28 cause thats how many fit on a palette) and using dithering math to approximate other colors. i'm convinced it'd be possible, via mixing, to achieve most, if not all, RGB colors, removing dithering artifacts entirely, but idk enough about how the painting mods mixing system works to do this yet
+
+- right now, remembering settings is NOT automatic, though it is possible (by copy pasting the output into variables). need to make this more automatic.
