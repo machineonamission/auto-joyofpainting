@@ -85,22 +85,22 @@ def canvas_calibration():
 
 def main():
 
-    # startmsg()
-    # canvas_calibration()
-    # color_calibration()
+    startmsg()
+    canvas_calibration()
+    color_calibration()
 
 
-    tall = 32
-    wide = 32
-    col_count = 28
-    colors = {(249, 255, 254): Coordinate({'y': 482, 'x': 789}), (71, 79, 82): Coordinate({'y': 349, 'x': 769}), (157, 157, 151): Coordinate({'y': 360, 'x': 606}), (249, 128, 29): Coordinate({'y': 502, 'x': 625}), (199, 78, 189): Coordinate({'y': 544, 'x': 490}), (22, 156, 156): Coordinate({'y': 396, 'x': 487}), (137, 50, 184): Coordinate({'y': 469, 'x': 387}), (60, 68, 170): Coordinate({'y': 537, 'x': 334}), (58, 179, 218): Coordinate({'y': 612, 'x': 460}), (131, 84, 50): Coordinate({'y': 643, 'x': 265}), (254, 216, 61): Coordinate({'y': 757, 'x': 427}), (94, 124, 22): Coordinate({'y': 858, 'x': 258}), (128, 199, 31): Coordinate({'y': 913, 'x': 395}), (176, 46, 38): Coordinate({'y': 1011, 'x': 271}), (243, 139, 170): Coordinate({'y': 1044, 'x': 419}), (29, 29, 33): Coordinate({'y': 1129, 'x': 295}), (23, 124, 125): Coordinate({'y': 568, 'x': 805}), (193, 103, 29): Coordinate({'y': 539, 'x': 887}), (156, 65, 149): Coordinate({'y': 636, 'x': 889}), (109, 44, 146): Coordinate({'y': 654, 'x': 789}), (52, 58, 135): Coordinate({'y': 746, 'x': 793}), (50, 141, 171): Coordinate({'y': 720, 'x': 868}), (197, 169, 53): Coordinate({'y': 809, 'x': 841}), (105, 70, 45): Coordinate({'y': 810, 'x': 756}), (103, 156, 31): Coordinate({'y': 894, 'x': 810}), (189, 111, 135): Coordinate({'y': 961, 'x': 748}), (77, 100, 24): Coordinate({'y': 900, 'x': 682}), (139, 41, 36): Coordinate({'y': 995, 'x': 663})}
-    top_left = Coordinate({'y': 251, 'x': 1175})
-    bottom_right = Coordinate({'y': 1020, 'x': 1947})
+    #tall = 32
+    #wide = 32
+    #col_count = 28
+    #colors = {(249, 255, 254): Coordinate({'y': 482, 'x': 789}), (71, 79, 82): Coordinate({'y': 349, 'x': 769}), (157, 157, 151): Coordinate({'y': 360, 'x': 606}), (249, 128, 29): Coordinate({'y': 502, 'x': 625}), (199, 78, 189): Coordinate({'y': 544, 'x': 490}), (22, 156, 156): Coordinate({'y': 396, 'x': 487}), (137, 50, 184): Coordinate({'y': 469, 'x': 387}), (60, 68, 170): Coordinate({'y': 537, 'x': 334}), (58, 179, 218): Coordinate({'y': 612, 'x': 460}), (131, 84, 50): Coordinate({'y': 643, 'x': 265}), (254, 216, 61): Coordinate({'y': 757, 'x': 427}), (94, 124, 22): Coordinate({'y': 858, 'x': 258}), (128, 199, 31): Coordinate({'y': 913, 'x': 395}), (176, 46, 38): Coordinate({'y': 1011, 'x': 271}), (243, 139, 170): Coordinate({'y': 1044, 'x': 419}), (29, 29, 33): Coordinate({'y': 1129, 'x': 295}), (23, 124, 125): Coordinate({'y': 568, 'x': 805}), (193, 103, 29): Coordinate({'y': 539, 'x': 887}), (156, 65, 149): Coordinate({'y': 636, 'x': 889}), (109, 44, 146): Coordinate({'y': 654, 'x': 789}), (52, 58, 135): Coordinate({'y': 746, 'x': 793}), (50, 141, 171): Coordinate({'y': 720, 'x': 868}), (197, 169, 53): Coordinate({'y': 809, 'x': 841}), (105, 70, 45): Coordinate({'y': 810, 'x': 756}), (103, 156, 31): Coordinate({'y': 894, 'x': 810}), (189, 111, 135): Coordinate({'y': 961, 'x': 748}), (77, 100, 24): Coordinate({'y': 900, 'x': 682}), (139, 41, 36): Coordinate({'y': 995, 'x': 663})}
+    #top_left = Coordinate({'y': 251, 'x': 1175})
+    #bottom_right = Coordinate({'y': 1020, 'x': 1947})
 
     delta = bottom_right - top_left
 
     muis = pynput.mouse.Controller()
-    with Image.open("img.png") as img:
+    with Image.open(input("Input the filename of the image:\n").strip()) as img:
         img = img.convert("RGB")
         img = img.resize((tall, wide))
         # dummy image to hold palette??
