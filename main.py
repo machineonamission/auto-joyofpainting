@@ -130,6 +130,7 @@ def main():
                 # time.sleep(1/60)
                 muis.click(mouse.Button.left)
                 time.sleep(1/100)
+    time.sleep(1)
     img.show()
 
 
