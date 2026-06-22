@@ -3,8 +3,12 @@ name = "auto-joyofpainting"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
-    "coordinates>=0.4.0",
+    "colour>=0.1.5",
+    "coordinates",
     "pillow>=12.2.0",
     "pyautogui>=0.9.54",
     "pynput>=1.8.2",
 ]
+
+[tool.uv.sources]
+coordinates = { git = "https://github.com/machineonamission/coordinates" }
