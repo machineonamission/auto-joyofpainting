@@ -4,6 +4,12 @@ a basic pynput/pyautogui Python script to automatically paint dithered pngs into
 
 this is NOT a Java mod, it just uses direct OS-level "move the mouse and click here" shit to control it. requires some calibration.
 
+# DISCLAIMER
+
+many servers with the JoP mod have programs like this explicitly against the rules. use at your own risk.
+
+# demo
+
 https://github.com/user-attachments/assets/a8c6e498-bb9d-40fd-ba6e-2a63f1fd34e7
 
 # setup
