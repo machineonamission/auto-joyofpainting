@@ -3,8 +3,6 @@ quantize.py
 
 Dither + quantize an image to a fixed predefined palette
 using Floyd-Steinberg error diffusion.
-
-i will be upfront here. claude wrote this. i tried desperately with like 4 different libs and some couldnt handle palettes more than 256 (PIL, hitherdither), some had rounding issues (imagemagick)
 """
 
 from PIL import Image
@@ -40,14 +38,20 @@ def quantize(image: Image.Image, palette: dict[Color, JoPColor]) -> list[list[Jo
             result[y][x] = palette[colors[idx]]
             error = old - palette_arr[idx]
 
-            # Floyd-Steinberg error diffusion
+            # Atkinson dithering — only propagates 6/8 of error, discards the rest.
+            # Solid colors stay solid; dithering only appears on genuine transitions.
+            e = error / 8
             if x + 1 < w:
-                buf[y,     x + 1] += error * 7 / 16
+                buf[y,     x + 1] += e
+            if x + 2 < w:
+                buf[y,     x + 2] += e
             if y + 1 < h:
                 if x - 1 >= 0:
-                    buf[y + 1, x - 1] += error * 3 / 16
-                buf[y + 1, x    ] += error * 5 / 16
+                    buf[y + 1, x - 1] += e
+                buf[y + 1, x    ] += e
                 if x + 1 < w:
-                    buf[y + 1, x + 1] += error * 1 / 16
+                    buf[y + 1, x + 1] += e
+            if y + 2 < h:
+                buf[y + 2, x    ] += e
 
     return result

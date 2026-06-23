@@ -7,6 +7,7 @@ import pynput
 import tqdm.contrib.itertools
 from PIL import Image
 from pynput import keyboard, mouse
+from collections import OrderedDict
 
 import quantizer
 from common import *
@@ -91,10 +92,10 @@ def color_calibration():
     colors = OrderedDict()
     positions = []
     col_count = intput("How many colors does your palette have? (default 16)", 16)
-    # for i in range(col_count):
-    #     print(f"Color {i + 1}/{col_count}:")
-    #     print("Click the color on the palette")
-    #     positions.append(click_pos())
+    for i in range(col_count):
+        print(f"Color {i + 1}/{col_count}:")
+        print("Click a new color on the palette")
+        positions.append(click_pos())
     # wait_for_unclick()
     # muis.position = (pos.x + 500, pos.y)
     # print(pos)
@@ -106,17 +107,17 @@ def color_calibration():
     #
     # print(f"{col} at {pos}")
     # colors[col] = pos
-    positions = [Coordinate({'y': 156, 'x': 1803}), Coordinate({'y': 217, 'x': 1812}),
-                 Coordinate({'y': 211, 'x': 1743}),
-                 Coordinate({'y': 157, 'x': 1742}), Coordinate({'y': 168, 'x': 1694}),
-                 Coordinate({'y': 232, 'x': 1698}),
-                 Coordinate({'y': 205, 'x': 1642}), Coordinate({'y': 254, 'x': 1612}),
-                 Coordinate({'y': 286, 'x': 1673}),
-                 Coordinate({'y': 305, 'x': 1593}), Coordinate({'y': 327, 'x': 1651}),
-                 Coordinate({'y': 361, 'x': 1599}),
-                 Coordinate({'y': 381, 'x': 1652}), Coordinate({'y': 414, 'x': 1605}),
-                 Coordinate({'y': 437, 'x': 1653}),
-                 Coordinate({'y': 476, 'x': 1615})]
+    # positions = [Coordinate({'y': 156, 'x': 1803}), Coordinate({'y': 217, 'x': 1812}),
+    #              Coordinate({'y': 211, 'x': 1743}),
+    #              Coordinate({'y': 157, 'x': 1742}), Coordinate({'y': 168, 'x': 1694}),
+    #              Coordinate({'y': 232, 'x': 1698}),
+    #              Coordinate({'y': 205, 'x': 1642}), Coordinate({'y': 254, 'x': 1612}),
+    #              Coordinate({'y': 286, 'x': 1673}),
+    #              Coordinate({'y': 305, 'x': 1593}), Coordinate({'y': 327, 'x': 1651}),
+    #              Coordinate({'y': 361, 'x': 1599}),
+    #              Coordinate({'y': 381, 'x': 1652}), Coordinate({'y': 414, 'x': 1605}),
+    #              Coordinate({'y': 437, 'x': 1653}),
+    #              Coordinate({'y': 476, 'x': 1615})]
     print(positions)
     print("determining color RGB...")
     click(opacities[1.0])
@@ -241,14 +242,12 @@ def drag_between(frm: Coordinate, to: Coordinate):
     delay()
 
 
-def click_color(color: JoPColor, so=True):
+def click_color(color: JoPColor, change_opacity=True):
     if isinstance(color, JoPPureColor):
-        if so:
+        if change_opacity:
             set_opacity(1.0)
         click(color.position)
     elif isinstance(color, JoPMixedColor):
-        # if isinstance(color.color1, JoPMixedColor) or isinstance(color.color2, JoPMixedColor):
-        #     raise NotImplementedError("nested mixing not implemented")
         # mix colors
         set_opacity(1.0)
         click_color(color.color2)
