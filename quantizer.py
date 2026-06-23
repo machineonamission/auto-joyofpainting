@@ -1,0 +1,53 @@
+"""
+quantize.py
+
+Dither + quantize an image to a fixed predefined palette
+using Floyd-Steinberg error diffusion.
+
+i will be upfront here. claude wrote this. i tried desperately with like 4 different libs and some couldnt handle palettes more than 256 (PIL, hitherdither), some had rounding issues (imagemagick)
+"""
+
+from PIL import Image
+import numpy as np
+from scipy.spatial import cKDTree
+
+from common import Color, JoPColor
+
+
+def quantize(image: Image.Image, palette: dict[Color, JoPColor]) -> list[list[JoPColor]]:
+    """
+    Dither and quantize `image` to the colors in `palette`.
+
+    image:   PIL Image (any mode, converted to RGB internally)
+    palette: dict[Color, JoPColor] — Color keys have .r .g .b as 0-255 ints
+    returns: 2D list result[y][x] of JoPColor
+    """
+    arr = np.array(image.convert("RGB"), dtype=np.float64)  # (H, W, 3)
+    h, w = arr.shape[:2]
+
+    # build KDTree from palette — handles any palette size from 16 to 16M
+    colors = list(palette.keys())
+    palette_arr = np.array([(c.r, c.g, c.b) for c in colors], dtype=np.float64)  # (N, 3)
+    tree = cKDTree(palette_arr)
+
+    buf = arr.copy()
+    result = [[None] * w for _ in range(h)]
+
+    for y in range(h):
+        for x in range(w):
+            old = np.clip(buf[y, x], 0, 255)
+            _, idx = tree.query(old)
+            result[y][x] = palette[colors[idx]]
+            error = old - palette_arr[idx]
+
+            # Floyd-Steinberg error diffusion
+            if x + 1 < w:
+                buf[y,     x + 1] += error * 7 / 16
+            if y + 1 < h:
+                if x - 1 >= 0:
+                    buf[y + 1, x - 1] += error * 3 / 16
+                buf[y + 1, x    ] += error * 5 / 16
+                if x + 1 < w:
+                    buf[y + 1, x + 1] += error * 1 / 16
+
+    return result

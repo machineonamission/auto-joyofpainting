@@ -4,13 +4,14 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "coordinates",
-    "hitherdither",
+    "numpy>=2.4.6",
     "pillow>=12.2.0",
     "pyautogui>=0.9.54",
     "pynput>=1.8.2",
+    "scipy>=1.17.1",
+    "tqdm>=4.68.3",
     "wand>=0.7.1",
 ]
 
 [tool.uv.sources]
 coordinates = { git = "https://github.com/machineonamission/coordinates" }
-hitherdither = { git = "https://www.github.com/hbldh/hitherdither" }

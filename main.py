@@ -1,26 +1,24 @@
-import copy
 import math
 import os
 import time
-from collections import OrderedDict
-from itertools import combinations
 
-import hitherdither
-import numpy as np
 import pyautogui
 import pynput
+import tqdm.contrib.itertools
 from PIL import Image
-from wand.image import Image as WandImage
-# from colour import Color
 from pynput import keyboard, mouse
 
+import quantizer
 from common import *
+
+# from colour import Color
 
 muis = pynput.mouse.Controller()
 
 
 def delay():
-    time.sleep(1 / 240)
+    # NOTE: THIS SEEMS TO BE MAXED AT 1 / FPS OR IT MISSES INPUTS!
+    time.sleep(1 / 60)
 
 
 def wait_for_click() -> mouse.Events.Click:
@@ -41,9 +39,14 @@ def wait_for_unclick() -> mouse.Events.Click:
                 return event
 
 
+def print_and_return(e):
+    print(e)
+    return e
+
+
 def click_pos():
     e = wait_for_click()
-    return Coordinate(x=e.x, y=e.y)
+    return print_and_return(Coordinate(x=e.x, y=e.y))
 
 
 def wait_for_key() -> keyboard.Events.Press:
@@ -63,12 +66,12 @@ def intput(msg, default=None):
 
 
 def startmsg():
-    print("Press any key (except q) to begin.")
+    print("Click to the game, then press any key (except q) to begin.")
     wait_for_key()
 
 
 def canvas_calibration():
-    global top_left, bottom_right, tall, wide
+    global top_left, bottom_right, tall, wide, delta
     print("Canvas calibration:")
     print("Click the top left corner.")
     top_left = click_pos()
@@ -79,28 +82,55 @@ def canvas_calibration():
     tall = intput("How many pixels TALL is your canvas? (small is 16, large is 32)", 32)
     wide = intput("How many pixels WIDE is your canvas? (small is 16, large is 32)", 32)
     print(f"{tall}x{wide} canvas")
+    delta = bottom_right - top_left
 
 
 def color_calibration():
     global colors, col_count, palette
     print("Color calibration: ")
     colors = OrderedDict()
+    positions = []
     col_count = intput("How many colors does your palette have? (default 16)", 16)
-    for i in range(col_count):
-        print(f"Color {i + 1}/{col_count}:")
-        print("Click the color on the palette (THE BACKGROUND, NOT THE DYE ICON!!)")
-        pos = click_pos()
-        wait_for_unclick()
-        muis.position = (pos.x + 500, pos.y)
-        print(pos)
+    # for i in range(col_count):
+    #     print(f"Color {i + 1}/{col_count}:")
+    #     print("Click the color on the palette")
+    #     positions.append(click_pos())
+    # wait_for_unclick()
+    # muis.position = (pos.x + 500, pos.y)
+    # print(pos)
+    # time.sleep(0.5)
+    # muis.position = (pos.x + 500, pos.y)
+    # col = pyautogui.pixel(pos.x, pos.y)
+    # col = Color(r=col[0], g=col[1], b=col[2])
+    # muis.position = (pos.x, pos.y)
+    #
+    # print(f"{col} at {pos}")
+    # colors[col] = pos
+    positions = [Coordinate({'y': 156, 'x': 1803}), Coordinate({'y': 217, 'x': 1812}),
+                 Coordinate({'y': 211, 'x': 1743}),
+                 Coordinate({'y': 157, 'x': 1742}), Coordinate({'y': 168, 'x': 1694}),
+                 Coordinate({'y': 232, 'x': 1698}),
+                 Coordinate({'y': 205, 'x': 1642}), Coordinate({'y': 254, 'x': 1612}),
+                 Coordinate({'y': 286, 'x': 1673}),
+                 Coordinate({'y': 305, 'x': 1593}), Coordinate({'y': 327, 'x': 1651}),
+                 Coordinate({'y': 361, 'x': 1599}),
+                 Coordinate({'y': 381, 'x': 1652}), Coordinate({'y': 414, 'x': 1605}),
+                 Coordinate({'y': 437, 'x': 1653}),
+                 Coordinate({'y': 476, 'x': 1615})]
+    print(positions)
+    print("determining color RGB...")
+    click(opacities[1.0])
+    for color_pos in positions:
+        click(color_pos)
+        click(bottom_right)
+        move_to(color_pos)
         time.sleep(0.5)
-        muis.position = (pos.x + 500, pos.y)
-        col = pyautogui.pixel(pos.x, pos.y)
+        col = pyautogui.pixel(bottom_right.x, bottom_right.y)
         col = Color(r=col[0], g=col[1], b=col[2])
-        muis.position = (pos.x, pos.y)
 
-        print(f"{col} at {pos}")
-        colors[col] = pos
+        print(f"{col} at {color_pos}")
+        colors[col] = color_pos
+
     palette = list(colors.keys())
     print(colors)
     print(palette)
@@ -128,7 +158,7 @@ def mix(a: Color, b: Color, ratio: float) -> Color:
 def mix_calibration():
     global opacities, mixer, mix_slot, water_slot
     opacities = OrderedDict()
-    for opacity in [1.0, 0.75, 0.5]:  # , 0.25]:
+    for opacity in [1.0, 0.75, 0.5, 0.25]:
         print(f"Click the {int(opacity * 100)}% opacity icon.")
         pos = click_pos()
         opacities[opacity] = pos
@@ -141,8 +171,6 @@ def mix_calibration():
     water_slot = click_pos()
 
 
-
-
 def mix_calculation():
     global colors, e_palette, palette
     e_palette = OrderedDict()
@@ -152,22 +180,22 @@ def mix_calculation():
     first_e_palette = list(e_palette.values()).copy()
 
     for depth in range(3):
-        for mixcol in list(e_palette.values()).copy():
-            for palcol in first_e_palette:
-                for opacity in [0.5, 0.75]:
-                    new_col = mix(palcol.color, mixcol.color, opacity)
-                    if new_col not in e_palette:
-                        e_palette[new_col] = JoPMixedColor(color=new_col, color1=palcol,
-                                                           color2=mixcol, opacity=opacity)
-        print(f"combination search depth {depth}")
+        print(f"combination search depth {depth}...\n")
+        for (mixcol, palcol, opacity) in tqdm.contrib.itertools.product(list(e_palette.values()).copy(),
+                                                                        first_e_palette, [0.5, 0.75]):
+            new_col = mix(palcol.color, mixcol.color, opacity)
+            if new_col not in e_palette:
+                e_palette[new_col] = JoPMixedColor(color=new_col, color1=palcol,
+                                                   color2=mixcol, opacity=opacity)
     print(f"{len(e_palette)} colors found")
+
 
 def save_calibration():
     print("saving...")
     with open("savedcalibration.py", "w+") as f:
         f.write("from collections import OrderedDict\nfrom common import *\n\n")
         for var in ["tall", "wide", "top_left", "bottom_right", "col_count", "colors", "opacities", "mixer",
-                    "mix_slot", "water_slot"]:
+                    "mix_slot", "water_slot", "delta"]:
             f.write(f"{var} = {globals()[var]}\n")
     print("calibration saved!")
 
@@ -198,12 +226,16 @@ def set_opacity(o: float):
         current_opacity = o
 
 
+def move_to(c: Coordinate):
+    muis.position = (c.x, c.y)
+
+
 def drag_between(frm: Coordinate, to: Coordinate):
-    muis.position = (frm.x, frm.y)
+    move_to(frm)
     delay()
     muis.press(mouse.Button.left)
     delay()
-    muis.position = (to.x, to.y)
+    move_to(to)
     delay()
     muis.release(mouse.Button.left)
     delay()
@@ -234,24 +266,36 @@ def click_color(color: JoPColor, so=True):
         # new color is autoselected
 
 
+def get_color(target_px: tuple[int, int, int]):
+    # off-by-one hack to confirm
+    for r_offset in [0, -1, 1, -2, 2]:
+        for g_offset in [0, -1, 1, -2, 2]:
+            for b_offset in [0, -1, 1, -2, 2]:
+                try:
+                    col = Color(r=int(target_px[0]), g=int(target_px[1]), b=int(target_px[2]))
+                    offset = Color(r=r_offset, g=g_offset, b=b_offset)
+                    col += offset
+                    # click on palette
+                    palette_entry = e_palette[col]
+                    # print(col, offset)
+                    return palette_entry
+                except KeyError:
+                    pass
+    # print(target_px)
+    raise KeyError
+
+
 def main():
     print("Auto \"Joy of Painting\" Script by Machine on a Mission.\nPress q to quit.")
 
     did_calibration = False
     did_key = False
 
-    if not all_defined("tall", "wide", "top_left", "bottom_right"):
+    if not all_defined("tall", "wide", "top_left", "bottom_right", "delta"):
         if not did_calibration and not did_key:
             startmsg()
             did_key = True
         canvas_calibration()
-        did_calibration = True
-
-    if not all_defined("col_count", "colors"):
-        if not did_calibration and not did_key:
-            startmsg()
-            did_key = True
-        color_calibration()
         did_calibration = True
 
     if not all_defined("opacities", "mixer", "mix_slot", "water_slot"):
@@ -261,15 +305,22 @@ def main():
         mix_calibration()
         did_calibration = True
 
+    if not all_defined("col_count", "colors"):
+        if not did_calibration and not did_key:
+            startmsg()
+            did_key = True
+        color_calibration()
+        did_calibration = True
+
     # name = input("Input the filename of the image:\n").strip()
     name = "loki.jpg"
 
-    if True: #did_calibration and input(
-            #"type `y` to save calibration, or anything else to not, then press enter.\n").strip() == "y":
+    if did_calibration and input(
+            "type `y` to save calibration, or anything else to not, then press enter.\n").strip() == "y":
         save_calibration()
 
-    canvas_w = 1 # intput("How many canvases wide?", 1)
-    canvas_h = 1 # intput("How many canvases tall?", 1)
+    canvas_w = 1  # intput("How many canvases wide?", 1)
+    canvas_h = 1  # intput("How many canvases tall?", 1)
     print(f"{canvas_w * canvas_h} canvases")
 
     mix_calculation()
@@ -281,72 +332,48 @@ def main():
     # top_left = Coordinate({'y': 251, 'x': 1175})
     # bottom_right = Coordinate({'y': 1020, 'x': 1947})
 
-    delta = bottom_right - top_left
+    print("loading and prepping image...")
+    with Image.open(name) as img:
+        img = img.convert("RGB")
+        img = img.resize((wide * canvas_w, tall * canvas_h))
 
-    with WandImage(filename=name) as img:
-        img.type = "truecolor"
+        # Force the output type to truecolor (RGB) to drop alpha or indexing
+        # img.type = 'truecolor'
+        # img.save(filename="PNG24:out.png")
         # img = img.convert("RGB")
-        img.resize(wide * canvas_w, tall * canvas_h)
+        print("quantizing...")
+        quantized = quantizer.quantize(img, e_palette)
+        c_count = 0
+        for canvas_wi in range(canvas_w):
+            for canvas_hi in range(canvas_h):
+                c_count += 1
+                print(f"canvas at ({canvas_wi}, {canvas_hi}) ({c_count} / {canvas_w * canvas_h})")
+                input(f"press enter on the console when ready (canvas open)")
+                startmsg()
+                print((canvas_wi * wide,
+                       canvas_hi * tall,
+                       (canvas_wi * wide) + wide,
+                       (canvas_hi * tall) + tall))
+                # crop.show()
+                # nonsense color so it always works
+                last_col = Color(r=256, g=256, b=256)
+                for (y,x) in tqdm.contrib.itertools.product(range(canvas_hi * tall, (canvas_hi * tall) + tall),
+                        range(canvas_wi * wide, (canvas_wi * wide) + wide)):
+                    # print(x,y)/
+                    # target_px = pixels[x, y]
 
-        hpal = []
-        for color in e_palette.keys():
-            hpal.append((color.r, color.g, color.b))
+                    # col = Color(r=target_px[0], g=target_px[1], b=target_px[2])
+                    # click on palette
+                    palette_entry = quantized[y][x]
+                    col = palette_entry.color
+                    if last_col != col:
+                        click_color(palette_entry)
+                    last_col = col
 
-        arr = np.array(hpal, dtype=np.uint8)  # shape (N, 3)
-        n = len(hpal)
-        with WandImage(width=n, height=1) as palette:
-            palette.type = "truecolor"
-            palette.import_pixels(
-                x=0, y=0,
-                width=n, height=1,
-                channel_map="RGB",
-                storage="char",
-                data=arr.tobytes()
-            )
-            palette.save(filename="PNG24:palette.png")
-            img.remap(affinity=palette, method='riemersma')#, method="floyd_steinberg")
+                    # click on canvas
 
-            # Force the output type to truecolor (RGB) to drop alpha or indexing
-            # img.type = 'truecolor'
-            img.save(filename="PNG24:out.png")
-        # img = img.convert("RGB")
-            c_count = 0
-            for canvas_wi in range(canvas_w):
-                for canvas_hi in range(canvas_h):
-                    c_count += 1
-                    print(f"canvas at ({canvas_wi}, {canvas_hi}) ({c_count} / {canvas_w * canvas_h})")
-                    input(f"press enter on the console when ready (canvas open)")
-                    startmsg()
-                    print((canvas_wi * wide,
-                           canvas_hi * tall,
-                           (canvas_wi * wide) + wide,
-                           (canvas_hi * tall) + tall))
-                    # TODO wrong
-                    # img.crop(canvas_wi * wide,
-                    #                  canvas_hi * tall,
-                    #                  (canvas_wi * wide) + wide,
-                    #                  (canvas_hi * tall) + tall)
-                    # crop.show()
-                    w, h = img.width, img.height
-                    flat = img.export_pixels(x=0, y=0, width=w, height=h, channel_map="RGB", storage="char")
-                    pixels = np.array(flat, dtype=np.uint8).reshape(h, w, 3)
-                    last_col = Color(r=255, g=255, b=255)
-                    for x in range(wide):
-                        for y in range(tall):
-                            # print(x,y)
-                            target_px = pixels[x, y]
-                            print(target_px)
-                            col = Color(r=target_px[0], g=target_px[1], b=target_px[2])
-                            # click on palette
-                            palette_entry = e_palette[col]
-                            if last_col != col:
-                                click_color(palette_entry)
-                            last_col = col
-
-                            # click on canvas
-
-                            pixel_pos = top_left + Coordinate(x=delta.x * (x / 31), y=delta.y * (y / 31))
-                            click(pixel_pos)
+                    pixel_pos = top_left + Coordinate(x=delta.x * (x / 31), y=delta.y * (y / 31))
+                    click(pixel_pos)
 
     time.sleep(1)
     # img.show()
@@ -364,8 +391,8 @@ def on_press(key):
 listener = keyboard.Listener(on_press=on_press)
 listener.start()
 
-# i fucking love storing python data as
-# if input("type `y` to load saved calibration, or anything else to not, then press enter.\n").strip() == "y":
-from savedcalibration import *
+# i fucking love storing python data as py files lmao
+if input("type `y` to load saved calibration, or anything else to not, then press enter.\n").strip() == "y":
+    from savedcalibration import *
 
 main()
