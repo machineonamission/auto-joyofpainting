@@ -1,6 +1,7 @@
 import math
 import os
 import time
+from collections import OrderedDict
 from itertools import combinations
 
 import pyautogui
@@ -12,6 +13,10 @@ from pynput import keyboard, mouse
 from common import *
 
 muis = pynput.mouse.Controller()
+
+
+def delay():
+    time.sleep(1 / 240)
 
 
 def wait_for_click() -> mouse.Events.Click:
@@ -75,17 +80,21 @@ def canvas_calibration():
 def color_calibration():
     global colors, col_count, palette
     print("Color calibration: ")
-    colors = {}
+    colors = OrderedDict()
     col_count = intput("How many colors does your palette have? (default 16)", 16)
     for i in range(col_count):
         print(f"Color {i + 1}/{col_count}:")
         print("Click the color on the palette (THE BACKGROUND, NOT THE DYE ICON!!)")
         pos = click_pos()
         wait_for_unclick()
+        muis.position = (pos.x + 500, pos.y)
         print(pos)
         time.sleep(0.5)
+        muis.position = (pos.x + 500, pos.y)
         col = pyautogui.pixel(pos.x, pos.y)
         col = Color(r=col[0], g=col[1], b=col[2])
+        muis.position = (pos.x, pos.y)
+
         print(f"{col} at {pos}")
         colors[col] = pos
     palette = list(colors.keys())
@@ -113,16 +122,19 @@ def mix(a: Color, b: Color, ratio: float) -> Color:
 
 
 def mix_calibration():
-    global opacities, mixer
-    opacities = {}
-    for opacity in [1.0, 0.75, 0.5, 0.25]:
+    global opacities, mixer, mix_slot, water_slot
+    opacities = OrderedDict()
+    for opacity in [1.0, 0.75, 0.5]:  # , 0.25]:
         print(f"Click the {int(opacity * 100)}% opacity icon.")
         pos = click_pos()
         opacities[opacity] = pos
     print(opacities)
     print("Click on the eyedropper")
-    pos = click_pos()
-    mixer = pos
+    mixer = click_pos()
+    print("Click on any open custom palette slot")
+    mix_slot = click_pos()
+    print("Click on the water slot")
+    water_slot = click_pos()
 
 
 e_palette: dict[Color, JoPColor]
@@ -130,7 +142,7 @@ e_palette: dict[Color, JoPColor]
 
 def mix_calculation():
     global colors, e_palette, palette
-    e_palette = {}
+    e_palette = OrderedDict()
     for color, pos in colors.items():
         e_palette[color] = JoPPureColor(color=color, position=pos)
 
@@ -149,8 +161,9 @@ def mix_calculation():
 def save_calibration():
     print("saving...")
     with open("savedcalibration.py", "w+") as f:
-        f.write("from common import *\n\n")
-        for var in ["tall", "wide", "top_left", "bottom_right", "col_count", "colors", "opacities", "mixer"]:
+        f.write("from collections import OrderedDict\nfrom common import *\n\n")
+        for var in ["tall", "wide", "top_left", "bottom_right", "col_count", "colors", "opacities", "mixer",
+                    "mix_slot", "water_slot"]:
             f.write(f"{var} = {globals()[var]}\n")
     print("calibration saved!")
 
@@ -165,27 +178,56 @@ def click(pos: tuple | Coordinate):
     else:
         (x, y) = (pos.x, pos.y)
     muis.position = (x, y)
+    delay()
     muis.click(mouse.Button.left)
-    time.sleep(1 / 100)
+    delay()
 
 
-def click_color(color: JoPColor):
+# stupid value so it always sets on first go, i keep forgtetting
+current_opacity = -1.0
+
+
+def set_opacity(o: float):
+    global current_opacity
+    if current_opacity != o:
+        click(opacities[o])
+        current_opacity = o
+
+
+def drag_between(frm: Coordinate, to: Coordinate):
+    muis.position = (frm.x, frm.y)
+    delay()
+    muis.press(mouse.Button.left)
+    delay()
+    muis.position = (to.x, to.y)
+    delay()
+    muis.release(mouse.Button.left)
+    delay()
+
+
+def click_color(color: JoPColor, so=True):
     if isinstance(color, JoPPureColor):
+        if so:
+            set_opacity(1.0)
         click(color.position)
     elif isinstance(color, JoPMixedColor):
         if isinstance(color.color1, JoPMixedColor) or isinstance(color.color2, JoPMixedColor):
             raise NotImplementedError("nested mixing not implemented")
-        click_color(color.color1)
+        # mix colors
+        set_opacity(1.0)
+        click_color(color.color2, False)
         click(bottom_right)
-        click(opacities[color.opacity])
-        click_color(color.color2)
+
+        set_opacity(color.opacity)
+        click_color(color.color1, False)
         click(bottom_right)
-        muis.position = (mixer.x, mixer.y)
-        muis.press(mouse.Button.left)
-        time.sleep(1 / 100)
-        muis.position = (bottom_right.x, bottom_right.y)
-        muis.release(mouse.Button.left)
-        time.sleep(1 / 100)
+
+        # pick up color
+        drag_between(water_slot, mix_slot)
+        click(mixer)
+        drag_between(bottom_right, mix_slot)
+        set_opacity(1.0)
+        # new color is autoselected
 
 
 def main():
@@ -208,22 +250,25 @@ def main():
         color_calibration()
         did_calibration = True
 
-    if not all_defined("opacities", "mixer"):
+    if not all_defined("opacities", "mixer", "mix_slot", "water_slot"):
         if not did_calibration and not did_key:
             startmsg()
             did_key = True
         mix_calibration()
         did_calibration = True
 
-    name = input("Input the filename of the image:\n").strip()
+    # name = input("Input the filename of the image:\n").strip()
+    name = "loki.jpg"
 
     if did_calibration and input(
             "type `y` to save calibration, or anything else to not, then press enter.\n").strip() == "y":
         save_calibration()
 
-    mix_calculation()
+    canvas_w = intput("How many canvases wide?", 1)
+    canvas_h = intput("How many canvases tall?", 1)
+    print(f"{canvas_w * canvas_h} canvases")
 
-    startmsg()
+    mix_calculation()
 
     # tall = 32
     # wide = 32
@@ -236,35 +281,53 @@ def main():
 
     with Image.open(name) as img:
         img = img.convert("RGB")
-        img = img.resize((tall, wide))
+        img = img.resize((wide * canvas_w, tall * canvas_h))
         # dummy image to hold palette??
         palimage = Image.new('P', (1, 1))
         # this function for some reason requires the palette to be flattened so fuck off
         flat_pal = []
         for col in list(e_palette.keys())[:256]:
-            flat_pal.extend([col.r, col.b, col.g])
+            flat_pal.extend([col.r, col.g, col.b])
         palimage.putpalette(flat_pal)
 
         img = img.quantize(colors=len(e_palette), palette=palimage)
         img = img.convert("RGB")
+
         # img.show()
-        pixels = img.load()
-        for x in range(tall):
-            for y in range(wide):
-                target_px = pixels[x, y]
+        # img.show()
 
-                # click on palette
-                palette_entry = e_palette[Color(r=target_px[0], g=target_px[1], b=target_px[2])]
+        c_count = 0
+        for canvas_wi in range(canvas_w):
+            for canvas_hi in range(canvas_h):
+                c_count += 1
+                print(f"canvas at ({canvas_wi}, {canvas_hi}) ({c_count} / {canvas_w * canvas_h})")
+                input(f"press enter on the console when ready (canvas open)")
+                startmsg()
+                print((canvas_wi * wide,
+                       canvas_hi * tall,
+                       (canvas_wi * wide) + wide,
+                       (canvas_hi * tall) + tall))
+                crop = img.crop((canvas_wi * wide,
+                                 canvas_hi * tall,
+                                 (canvas_wi * wide) + wide,
+                                 (canvas_hi * tall) + tall))
+                # crop.show()
+                pixels = crop.load()
+                for x in range(tall):
+                    for y in range(wide):
+                        # print(x,y)
+                        target_px = pixels[x, y]
 
-                click_color(palette_entry)
+                        # click on palette
+                        palette_entry = e_palette[Color(r=target_px[0], g=target_px[1], b=target_px[2])]
 
-                # click on canvas
+                        click_color(palette_entry)
 
-                pixel_pos = top_left + Coordinate(x=delta.x * (x / 31), y=delta.y * (y / 31))
-                muis.position = (pixel_pos.x, pixel_pos.y)
-                # time.sleep(1/60)
-                muis.click(mouse.Button.left)
-                time.sleep(1 / 100)
+                        # click on canvas
+
+                        pixel_pos = top_left + Coordinate(x=delta.x * (x / 31), y=delta.y * (y / 31))
+                        click(pixel_pos)
+
     time.sleep(1)
     img.show()
 
