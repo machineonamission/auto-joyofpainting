@@ -10,7 +10,11 @@ many servers with the JoP mod have programs like this explicitly against the rul
 
 # demo
 
-https://github.com/user-attachments/assets/a8c6e498-bb9d-40fd-ba6e-2a63f1fd34e7
+
+
+https://github.com/user-attachments/assets/650963a6-2ef5-4130-8191-4f78ed62cc04
+
+
 
 # setup
 
