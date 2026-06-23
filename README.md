@@ -37,6 +37,4 @@ https://github.com/user-attachments/assets/650963a6-2ef5-4130-8191-4f78ed62cc04
 
 # future plans
 
-- currently, the program only paints with the colors you provide it (max 28 cause thats how many fit on a palette) and using dithering math to approximate other colors. i'm convinced it'd be possible, via mixing, to achieve most, if not all, RGB colors, removing dithering artifacts entirely, but idk enough about how the painting mods mixing system works to do this yet
-
-- right now, remembering settings is NOT automatic, though it is possible (by copy pasting the output into variables). need to make this more automatic.
+- currently, the program mixes the base 16 colors up to 256 times with opacity (Pillow palette size limit). i imagine it would be possible to not even palletize and to just reproduce each rgb value perfectly, but i'd need to study the color mixing more to achieve this
