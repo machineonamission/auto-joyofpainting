@@ -1,13 +1,16 @@
 [project]
 name = "auto-joyofpainting"
 version = "0.1.0"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
     "coordinates",
+    "hitherdither",
     "pillow>=12.2.0",
     "pyautogui>=0.9.54",
     "pynput>=1.8.2",
+    "wand>=0.7.1",
 ]
 
 [tool.uv.sources]
 coordinates = { git = "https://github.com/machineonamission/coordinates" }
+hitherdither = { git = "https://www.github.com/hbldh/hitherdither" }
