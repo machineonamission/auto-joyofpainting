@@ -1,13 +1,13 @@
 import math
 import os
 import time
+from collections import defaultdict
 
 import pyautogui
 import pynput
 import tqdm.contrib.itertools
 from PIL import Image
 from pynput import keyboard, mouse
-from collections import OrderedDict
 
 import quantizer
 from common import *
@@ -174,6 +174,7 @@ def mix_calibration():
 
 def mix_calculation():
     global colors, e_palette, palette
+    print("pre-computing color mixing")
     e_palette = OrderedDict()
     for color, pos in colors.items():
         e_palette[color] = JoPPureColor(color=color, position=pos)
@@ -181,9 +182,9 @@ def mix_calculation():
     first_e_palette = list(e_palette.values()).copy()
 
     for depth in range(3):
-        print(f"combination search depth {depth}...\n")
         for (mixcol, palcol, opacity) in tqdm.contrib.itertools.product(list(e_palette.values()).copy(),
-                                                                        first_e_palette, [0.5, 0.75]):
+                                                                        first_e_palette, [0.5, 0.75],
+                                                                        desc=f"searching depth {depth}"):
             new_col = mix(palcol.color, mixcol.color, opacity)
             if new_col not in e_palette:
                 e_palette[new_col] = JoPMixedColor(color=new_col, color1=palcol,
@@ -311,15 +312,15 @@ def main():
         color_calibration()
         did_calibration = True
 
-    # name = input("Input the filename of the image:\n").strip()
-    name = "loki.jpg"
+    name = input("Input the filename of the image:\n").strip()
+    # name = "monalisa.jpg"
 
     if did_calibration and input(
             "type `y` to save calibration, or anything else to not, then press enter.\n").strip() == "y":
         save_calibration()
 
-    canvas_w = 1  # intput("How many canvases wide?", 1)
-    canvas_h = 1  # intput("How many canvases tall?", 1)
+    canvas_w = intput("How many canvases wide?", 1)
+    canvas_h = intput("How many canvases tall?", 1)
     print(f"{canvas_w * canvas_h} canvases")
 
     mix_calculation()
@@ -349,30 +350,44 @@ def main():
                 print(f"canvas at ({canvas_wi}, {canvas_hi}) ({c_count} / {canvas_w * canvas_h})")
                 input(f"press enter on the console when ready (canvas open)")
                 startmsg()
-                print((canvas_wi * wide,
-                       canvas_hi * tall,
-                       (canvas_wi * wide) + wide,
-                       (canvas_hi * tall) + tall))
+                yrange = range(canvas_hi * tall, (canvas_hi * tall) + tall)
+                xrange = range(canvas_wi * wide, (canvas_wi * wide) + wide)
                 # crop.show()
                 # nonsense color so it always works
-                last_col = Color(r=256, g=256, b=256)
-                for (y,x) in tqdm.contrib.itertools.product(range(canvas_hi * tall, (canvas_hi * tall) + tall),
-                        range(canvas_wi * wide, (canvas_wi * wide) + wide)):
+                all_color_pixels = defaultdict(list)
+                for y in yrange:
+                    for x in xrange:
+                        px = quantized[y][x]
+                        all_color_pixels[px.color].append((x, y))
+                # last_col = Color(r=256, g=256, b=256)
+
+                # since we use the last pixel for mixing, always do it last
+                x = xrange[-1]
+                y = yrange[-1]
+                px = quantized[y][x]
+                last_pixel = all_color_pixels.pop(px.color)
+
+                allcolors = [*all_color_pixels.items(), (px.color, last_pixel)]
+
+                for color, coords in tqdm.tqdm(allcolors, desc="Painting"):
+                    # print(color,coords)
                     # print(x,y)/
                     # target_px = pixels[x, y]
 
                     # col = Color(r=target_px[0], g=target_px[1], b=target_px[2])
                     # click on palette
-                    palette_entry = quantized[y][x]
-                    col = palette_entry.color
-                    if last_col != col:
-                        click_color(palette_entry)
-                    last_col = col
+                    # palette_entry = quantized[y][x]
+                    # col = palette_entry.color
+                    # if last_col != col:
+                    click_color(e_palette[color])
+                    # last_col = col
 
                     # click on canvas
+                    for (x, y) in coords:
+                        pixel_pos = top_left + Coordinate(x=delta.x * (x / 31), y=delta.y * (y / 31))
+                        click(pixel_pos)
 
-                    pixel_pos = top_left + Coordinate(x=delta.x * (x / 31), y=delta.y * (y / 31))
-                    click(pixel_pos)
+                # pbar.update(1)
 
     time.sleep(1)
     # img.show()
