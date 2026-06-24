@@ -19,6 +19,4 @@ class JoPPureColor(JoPColor):
 
 @dataclass
 class JoPMixedColor(JoPColor):
-    color1: JoPColor
-    color2: JoPColor
-    opacity: float
+    colors: list[JoPPureColor]

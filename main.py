@@ -1,7 +1,7 @@
 import math
 import os
 import time
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import pyautogui
 import pynput
@@ -19,7 +19,7 @@ muis = pynput.mouse.Controller()
 
 def delay():
     # NOTE: THIS SEEMS TO BE MAXED AT 1 / FPS OR IT MISSES INPUTS!
-    time.sleep(1 / 60)
+    time.sleep(1 / 230)
 
 
 def wait_for_click() -> mouse.Events.Click:
@@ -175,20 +175,21 @@ def mix_calibration():
 def mix_calculation():
     global colors, e_palette, palette
     print("pre-computing color mixing")
+    # e_palette: OrderedDict[Color, JoPColor] = OrderedDict()
     e_palette = OrderedDict()
+
     for color, pos in colors.items():
         e_palette[color] = JoPPureColor(color=color, position=pos)
 
     first_e_palette = list(e_palette.values()).copy()
-
-    for depth in range(3):
-        for (mixcol, palcol, opacity) in tqdm.contrib.itertools.product(list(e_palette.values()).copy(),
-                                                                        first_e_palette, [0.5, 0.75],
-                                                                        desc=f"searching depth {depth}"):
-            new_col = mix(palcol.color, mixcol.color, opacity)
+    MIXING_DEPTH = 7
+    for depth in range(2, 2 + MIXING_DEPTH):
+        for list_of_colors in tqdm.contrib.itertools.combinations_with_replacement(first_e_palette, depth,
+                                                                                   desc=f"searching depth {depth}",
+                                                                                   unit="colors"):
+            new_col = jop_palette_mix([c.color for c in list_of_colors])
             if new_col not in e_palette:
-                e_palette[new_col] = JoPMixedColor(color=new_col, color1=palcol,
-                                                   color2=mixcol, opacity=opacity)
+                e_palette[new_col] = JoPMixedColor(colors=list_of_colors, color=new_col)
     print(f"{len(e_palette)} colors found")
 
 
@@ -249,40 +250,44 @@ def click_color(color: JoPColor, change_opacity=True):
             set_opacity(1.0)
         click(color.position)
     elif isinstance(color, JoPMixedColor):
-        # mix colors
-        set_opacity(1.0)
-        click_color(color.color2)
-        click(bottom_right)
-
-        set_opacity(color.opacity)
-        click_color(color.color1, False)
-        click(bottom_right)
-
-        # pick up color
         drag_between(water_slot, mix_slot)
-        click(mixer)
-        drag_between(bottom_right, mix_slot)
-        set_opacity(1.0)
+        for base_c in color.colors:
+            click(mixer)
+            drag_between(base_c.position, mix_slot)
         # new color is autoselected
 
 
-def get_color(target_px: tuple[int, int, int]):
-    # off-by-one hack to confirm
-    for r_offset in [0, -1, 1, -2, 2]:
-        for g_offset in [0, -1, 1, -2, 2]:
-            for b_offset in [0, -1, 1, -2, 2]:
-                try:
-                    col = Color(r=int(target_px[0]), g=int(target_px[1]), b=int(target_px[2]))
-                    offset = Color(r=r_offset, g=g_offset, b=b_offset)
-                    col += offset
-                    # click on palette
-                    palette_entry = e_palette[col]
-                    # print(col, offset)
-                    return palette_entry
-                except KeyError:
-                    pass
-    # print(target_px)
-    raise KeyError
+# def get_color(target_px: tuple[int, int, int]):
+#     # off-by-one hack to confirm
+#     for r_offset in [0, -1, 1, -2, 2]:
+#         for g_offset in [0, -1, 1, -2, 2]:
+#             for b_offset in [0, -1, 1, -2, 2]:
+#                 try:
+#                     col = Color(r=int(target_px[0]), g=int(target_px[1]), b=int(target_px[2]))
+#                     offset = Color(r=r_offset, g=g_offset, b=b_offset)
+#                     col += offset
+#                     # click on palette
+#                     palette_entry = e_palette[col]
+#                     # print(col, offset)
+#                     return palette_entry
+#                 except KeyError:
+#                     pass
+#     # print(target_px)
+#     raise KeyError
+
+
+def jop_palette_mix(colors: list[Color]) -> Color:
+    n = len(colors)
+    total = sum(colors, start=Color(r=0, g=0, b=0))
+    total_maximum = sum(max(c.r, c.g, c.b) for c in colors)
+
+    average = total // n
+    average_maximum = total_maximum // n
+
+    maximum_of_average = max(average.r, average.g, average.b)
+    gain_factor = 0 if maximum_of_average == 0 else average_maximum // maximum_of_average
+
+    return average * gain_factor
 
 
 def main():
@@ -362,14 +367,14 @@ def main():
                 # last_col = Color(r=256, g=256, b=256)
 
                 # since we use the last pixel for mixing, always do it last
-                x = xrange[-1]
-                y = yrange[-1]
-                px = quantized[y][x]
-                last_pixel = all_color_pixels.pop(px.color)
+                # x = xrange[-1]
+                # y = yrange[-1]
+                # px = quantized[y][x]
+                # last_pixel = all_color_pixels.pop(px.color)
+                #
+                # allcolors = [*all_color_pixels.items(), (px.color, last_pixel)]
 
-                allcolors = [*all_color_pixels.items(), (px.color, last_pixel)]
-
-                for color, coords in tqdm.tqdm(allcolors, desc="Painting"):
+                for color, coords in tqdm.tqdm(all_color_pixels.items(), desc="Painting", unit="colors"):
                     # print(color,coords)
                     # print(x,y)/
                     # target_px = pixels[x, y]
@@ -384,7 +389,8 @@ def main():
 
                     # click on canvas
                     for (x, y) in coords:
-                        pixel_pos = top_left + Coordinate(x=delta.x * (x / 31), y=delta.y * (y / 31))
+                        pixel_pos = top_left + Coordinate(x=delta.x * (x % wide / (wide - 1)),
+                                                          y=delta.y * (y % tall / (tall - 1)))
                         click(pixel_pos)
 
                 # pbar.update(1)
