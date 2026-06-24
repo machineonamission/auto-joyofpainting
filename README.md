@@ -12,7 +12,10 @@ many servers with the JoP mod have programs like this explicitly against the rul
 
 # demo
 
-https://github.com/user-attachments/assets/650963a6-2ef5-4130-8191-4f78ed62cc04
+<img width="1407" height="1630" alt="image" src="https://github.com/user-attachments/assets/f2032277-581c-4be9-a3d1-496c72726a43" />
+
+https://github.com/user-attachments/assets/2686d1cb-111b-45f6-8439-c50c6b911f8e
+
 
 # setup
 
@@ -26,17 +29,11 @@ https://github.com/user-attachments/assets/650963a6-2ef5-4130-8191-4f78ed62cc04
 - keep both minecraft and the terminal window visible on your monitor, youll need to interact with both
 - the program will run a few calibration steps
     - the program will ask some questions, follow as it says.
-    - it will calibrate the canvas's position by having you click the top-left and bottom-right corners
-    - then you tell it the colors you have by clicking the BACKGROUND of every color
-        - to ensure proper calibration, it's best to not move the mouse for like half a second between clicks
-        - tip: you can use the extra 12 palette slots to add extra colors, just tell the program you have more than 16
-          colors
+    - it will calibrate the position of the onscreen elements (colors, ui elements, etc) by having you click on them
+    - it will then run some math to figure out how to mix colors for the image
 - the program will then paint for you :3
 
 # notes
 
-- the program is currently configured to mix colors up to a depth of 3 (very diminishing returns, 300k color palette)
-- mixing direclty on the palette might be possible, and might be MUCH quicker, but id have to look into how *that* math
-  works, it seems to work different than canvas opacity
 - the "`def delay()`" function is configured by default for 1/60 s between actions, it is possible to increase this to a
   bit less than one action per frame if you have a high refresh rate monitor, thats where it seems to max out
