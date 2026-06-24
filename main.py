@@ -1,3 +1,4 @@
+import copy
 import math
 import os
 import time
@@ -15,6 +16,8 @@ from common import *
 # from colour import Color
 
 muis = pynput.mouse.Controller()
+
+SEARCH_DEPTH = 3
 
 
 def delay():
@@ -172,24 +175,50 @@ def mix_calibration():
     water_slot = click_pos()
 
 
-def mix_calculation():
+# def mix_calculation_palette():
+#     global colors, e_palette, palette
+#     print("pre-computing color mixing")
+#     # e_palette: OrderedDict[Color, JoPColor] = OrderedDict()
+#     e_palette = OrderedDict()
+#
+#     for color, pos in colors.items():
+#         e_palette[color] = JoPPureColor(color=color, position=pos)
+#
+#     first_e_palette = list(e_palette.values()).copy()
+#     MIXING_DEPTH = 7
+#     for depth in range(2, 2 + MIXING_DEPTH):
+#         for list_of_colors in tqdm.contrib.itertools.combinations_with_replacement(first_e_palette, depth,
+#                                                                                    desc=f"searching depth {depth}",
+#                                                                                    unit="colors"):
+#             new_col = jop_palette_mix([c.color for c in list_of_colors])
+#             if new_col not in e_palette:
+#                 e_palette[new_col] = JoPMixedColor(colors=list_of_colors, color=new_col)
+#     print(f"{len(e_palette)} colors found")
+
+
+def mix_calculation_canvas():
     global colors, e_palette, palette
-    print("pre-computing color mixing")
-    # e_palette: OrderedDict[Color, JoPColor] = OrderedDict()
     e_palette = OrderedDict()
-
+    pure_palette = OrderedDict()
     for color, pos in colors.items():
-        e_palette[color] = JoPPureColor(color=color, position=pos)
+        pure = JoPPureColor(color=color, position=pos, opacity=1)
+        pure_palette[color] = pure
+        e_palette[color] = JoPMixedColor(color=color, colors=[pure])
 
-    first_e_palette = list(e_palette.values()).copy()
-    MIXING_DEPTH = 7
-    for depth in range(2, 2 + MIXING_DEPTH):
-        for list_of_colors in tqdm.contrib.itertools.combinations_with_replacement(first_e_palette, depth,
-                                                                                   desc=f"searching depth {depth}",
-                                                                                   unit="colors"):
-            new_col = jop_palette_mix([c.color for c in list_of_colors])
+    for depth in range(SEARCH_DEPTH):
+        for mixcol, palcol, opacity in tqdm.contrib.itertools.product(list(e_palette.values()).copy(),
+                                                                      pure_palette.values(), [0.25, 0.5, 0.75],
+                                                                      desc=f"searching depth {depth}", unit="colors"):
+            new_col = mix(palcol.color, mixcol.color, opacity)
+            new_palcol = copy.copy(palcol)
+            new_palcol.opacity = opacity
             if new_col not in e_palette:
-                e_palette[new_col] = JoPMixedColor(colors=list_of_colors, color=new_col)
+                existing_color = e_palette[mixcol.color]
+                # if isinstance(existing_color, JoPMixedColor):
+                e_palette[new_col] = JoPMixedColor(color=new_col, colors=existing_color.colors + [new_palcol])
+                # else:
+                #     e_palette[new_col] = JoPMixedColor(color=new_col, colors=[mixcol, palcol])
+        # print(f"combination search depth {depth}")
     print(f"{len(e_palette)} colors found")
 
 
@@ -246,8 +275,9 @@ def drag_between(frm: Coordinate, to: Coordinate):
 
 def click_color(color: JoPColor, change_opacity=True):
     if isinstance(color, JoPPureColor):
-        if change_opacity:
-            set_opacity(1.0)
+        # if change_opacity:
+        click(opacities[color.opacity])
+        # set_opacity(color.opacity)
         click(color.position)
     elif isinstance(color, JoPMixedColor):
         drag_between(water_slot, mix_slot)
@@ -328,7 +358,7 @@ def main():
     canvas_h = intput("How many canvases tall?", 1)
     print(f"{canvas_w * canvas_h} canvases")
 
-    mix_calculation()
+    mix_calculation_canvas()
 
     # tall = 32
     # wide = 32
@@ -357,41 +387,53 @@ def main():
                 startmsg()
                 yrange = range(canvas_hi * tall, (canvas_hi * tall) + tall)
                 xrange = range(canvas_wi * wide, (canvas_wi * wide) + wide)
-                # crop.show()
-                # nonsense color so it always works
-                all_color_pixels = defaultdict(list)
-                for y in yrange:
-                    for x in xrange:
-                        px = quantized[y][x]
-                        all_color_pixels[px.color].append((x, y))
-                # last_col = Color(r=256, g=256, b=256)
 
-                # since we use the last pixel for mixing, always do it last
-                # x = xrange[-1]
-                # y = yrange[-1]
-                # px = quantized[y][x]
-                # last_pixel = all_color_pixels.pop(px.color)
-                #
-                # allcolors = [*all_color_pixels.items(), (px.color, last_pixel)]
+                # pre-compute number of pixels we have to paint
+                total = 0
+                for x in xrange:
+                    for y in yrange:
+                        total += len(quantized[y][x].colors)
 
-                for color, coords in tqdm.tqdm(all_color_pixels.items(), desc="Painting", unit="colors"):
-                    # print(color,coords)
-                    # print(x,y)/
-                    # target_px = pixels[x, y]
+                with tqdm.tqdm(total=total, unit="pixels") as pbar:
+                    for layer in range(SEARCH_DEPTH + 1):
+                        pbar.set_description(f"painting layer {layer + 1}/{SEARCH_DEPTH + 1}")
+                        # crop.show()
+                        # nonsense color so it always works
+                        all_color_pixels = defaultdict(list)
+                        for y in yrange:
+                            for x in xrange:
+                                px = quantized[y][x]
+                                if len(px.colors) > layer:
+                                    all_color_pixels[px.colors[layer]].append((x, y))
+                        # last_col = Color(r=256, g=256, b=256)
 
-                    # col = Color(r=target_px[0], g=target_px[1], b=target_px[2])
-                    # click on palette
-                    # palette_entry = quantized[y][x]
-                    # col = palette_entry.color
-                    # if last_col != col:
-                    click_color(e_palette[color])
-                    # last_col = col
+                        # since we use the last pixel for mixing, always do it last
+                        # x = xrange[-1]
+                        # y = yrange[-1]
+                        # px = quantized[y][x]
+                        # last_pixel = all_color_pixels.pop(px.color)
+                        #
+                        # allcolors = [*all_color_pixels.items(), (px.color, last_pixel)]
 
-                    # click on canvas
-                    for (x, y) in coords:
-                        pixel_pos = top_left + Coordinate(x=delta.x * (x % wide / (wide - 1)),
-                                                          y=delta.y * (y % tall / (tall - 1)))
-                        click(pixel_pos)
+                        for color, coords in all_color_pixels.items():  # tqdm.tqdm(all_color_pixels.items(), desc="Painting", unit="colors"):
+                            # print(color,coords)
+                            # print(x,y)/
+                            # target_px = pixels[x, y]
+
+                            # col = Color(r=target_px[0], g=target_px[1], b=target_px[2])
+                            # click on palette
+                            # palette_entry = quantized[y][x]
+                            # col = palette_entry.color
+                            # if last_col != col:
+                            click_color(color)
+                            # last_col = col
+
+                            # click on canvas
+                            for (x, y) in coords:
+                                pixel_pos = top_left + Coordinate(x=delta.x * (x % wide / (wide - 1)),
+                                                                  y=delta.y * (y % tall / (tall - 1)))
+                                click(pixel_pos)
+                                pbar.update(1)
 
                 # pbar.update(1)
 
