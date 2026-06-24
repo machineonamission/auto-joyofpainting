@@ -19,7 +19,7 @@ muis = pynput.mouse.Controller()
 
 def delay():
     # NOTE: THIS SEEMS TO BE MAXED AT 1 / FPS OR IT MISSES INPUTS!
-    time.sleep(1 / 230)
+    time.sleep(1 / 60)
 
 
 def wait_for_click() -> mouse.Events.Click:
